@@ -10,6 +10,16 @@ var gameSpeed = 100; // how often the game is redrawn in ms (smaller = faster)
 var player_name = localStorage.getItem('username');
 var top_score = localStorage.getItem('top_score');
 var lowest_in_top = false;
+var resolutionOptions = document.getElementById('resolution').options;
+var screenWidth = window.innerWidth;
+console.log(screenWidth);
+
+for (var i = 0; i < resolutionOptions.length; i++) {
+	var valueWidth = parseFloat(resolutionOptions[i].value.split('/')[1]);
+	if ( valueWidth > screenWidth) {
+		resolutionOptions[i] = null;
+	}
+}
 
 var edges = [
 	{start: {x:0, y:0}, end: {x:canvas.width, y:0}},
@@ -27,6 +37,7 @@ function newRandomPoint(){
 }
 
 function draw(){
+    let tomatoColor = "tomato";
 	ctx.clearRect(0, 0, canvas.width, canvas.height);
 	if(!food) food = newRandomPoint();
 	ctx.beginPath();
@@ -35,9 +46,12 @@ function draw(){
 		ctx.moveTo(snek.segments[i].start.x, snek.segments[i].start.y);
 		ctx.lineTo(snek.segments[i].end.x, snek.segments[i].end.y);
 	}
+	ctx.strokeStyle = '#795548';
 	ctx.stroke();
+    ctx.strokeStyle = snek.color;
 	ctx.font = 'bold 3px Calibri';
 	ctx.fillText("🍅", food.x, food.y);
+    ctx.fillStyle = tomatoColor;
 	// ctx.fillRect(food.x, food.y, snek.width, snek.width);
 }
 
@@ -64,6 +78,9 @@ function mainLoop(){
 function gameOver(){
 	var score = snek.getLength();
 	displayMessage('gameover, your score is ' + snek.getLength()+".");
+
+	document.getElementById("btn-restart").classList.remove("hide");
+
 	ajax({action:'addScore',username:player_name,score:score,game:'snek'}).then(res=>{
 		if(top_score && score > top_score){
 			localStorage.getItem('top_score', score);
@@ -101,8 +118,15 @@ function stopGame(){
 }
 
 function toggleGame(){
-	if(!gameStarted) startGame();
-	else stopGame();
+	var resolution = document.getElementById("resolution");
+	if(!gameStarted) {
+		startGame();
+		resolution.classList.add("hidden");
+	}
+	else {
+		stopGame();
+		resolution.classList.remove("hidden");
+	}
 }
 
 function isPointCollidedWithEdgeOrSelf(point){
@@ -184,9 +208,9 @@ function loadTop15(){
 	var list = document.getElementById('scores');
 	var markup_buffer = [];
 	ajax({action:'getTop',results:15,game:'snek'}).then(res=>{
-		res.data.forEach(score=>{ 
+		res.data.forEach(score=>{
 			if(lowest_in_top === false || lowest_in_top > score.score) lowest_in_top = score.score;
-			markup_buffer.push(`<li>${score.username} (${score.score}pts)</li>`); 
+			markup_buffer.push(`<li>${score.username} (${score.score}pts)</li>`);
 		});
 		list.innerHTML = markup_buffer.join('');
 	});
@@ -206,13 +230,22 @@ function ajax(params){
 			   done(JSON.parse(xhttp.responseText));
 			}
 		};
-		xhttp.open("GET", "http://pamblam.com/scoreboard/?"+qs.join('&'), true);
+		xhttp.open("GET", "https://pamblam.com/scoreboard/?"+qs.join('&'), true);
 		xhttp.send();
 	});
 }
 
 if(!player_name)getPlayerName();
 else showGame();
+
+
+for (var i=0; i<document.getElementById('resolution').options.length; i++){
+	var size = document.getElementById('resolution').options[i].value.split("/");
+	if (parseInt(size[1],10) > window.innerWidth || parseInt(size[0],10) > window.innerHeight){
+		document.getElementById('resolution').remove(i);
+		i--;
+	}
+}
 
 document.getElementById('resolution').addEventListener('change', function() {
 	var selectedVal = document.getElementById('resolution').value.split('/');
@@ -221,3 +254,12 @@ document.getElementById('resolution').addEventListener('change', function() {
 	canvas.height = selectedVal[0] === 'fullscreen' ? window.innerHeight - document.documentElement.offsetHeight + canvasHeight  : selectedVal[0];
 	canvas.width = selectedVal[0] === 'fullscreen' ? document.body.clientWidth : selectedVal[1];
 })
+
+document.getElementById('btn-toggle-hide').addEventListener('click', function() {
+	if(document.getElementById('scores').style.display == 'none') {
+		document.getElementById('scores').style.display = 'block';
+	}
+	else {
+		document.getElementById('scores').style.display = 'none';
+	}
+});
